@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- Payment list: Batch Deposit button + PDC columns           -->
+    <!-- ============================================================ -->
+    <record id="view_account_payment_list_inherit" model="ir.ui.view">
+        <field name="name">account.payment.list.gupit</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list/header" position="inside">
+                <button name="action_batch_deposit"
+                        string="Batch Deposit"
+                        type="object"
+                        class="btn-primary"/>
+                <button name="action_validate"
+                        string="Validate"
+                        type="object"
+                        class="btn-primary"/>
+                <button name="action_bounced"
+                        string="Bounced"
+                        type="object"
+                        class="btn-secondary"/>
+                <button name="action_pulled_out"
+                        string="Pulled Out"
+                        type="object"
+                        class="btn-secondary"/>
+            </xpath>
+            <!-- Add check/deposited/clear date columns next to the date field -->
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="check_date" string="Check Date" optional="show"/>
+                <field name="deposited_date" string="Deposited Date" optional="show"/>
+                <field name="clear_date" string="Clear Date" optional="show"/>
+                <field name="check_reference" string="Check Number" optional="show"/>
+            </xpath>
+            <!-- Per-line PDC action buttons -->
+            <xpath expr="//field[@name='state']" position="before">
+                <field name="payment_channel" column_invisible="True"/>
+                <button name="action_deposit" string="Deposit" type="object"
+                        icon="fa-bank"
+                        invisible="payment_channel != 'pdc' or state != 'in_process'"/>
+                <button name="action_validate" string="Validate" type="object"
+                        icon="fa-check"
+                        invisible="payment_channel != 'pdc' or state != 'deposited'"/>
+                <button name="action_bounced" string="Bounced" type="object"
+                        icon="fa-times-circle"
+                        invisible="payment_channel != 'pdc' or state != 'deposited'"/>
+                <button name="action_pulled_out" string="Pulled Out" type="object"
+                        icon="fa-undo"
+                        invisible="payment_channel != 'pdc' or state != 'deposited'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Payment search: Group by Check Date / Deposited Date        -->
+    <!-- ============================================================ -->
+    <record id="view_account_payment_search_inherit" model="ir.ui.view">
+        <field name="name">account.payment.search.gupit</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='groupby_date']" position="after">
+                <filter string="Check Date" name="groupby_check_date" domain="[]" context="{'group_by': 'check_date'}"/>
+                <filter string="Deposited Date" name="groupby_deposited_date" domain="[]" context="{'group_by': 'deposited_date'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- Payment form: add PDC buttons, fields, and visibility rules  -->
+    <!-- ============================================================ -->
+    <record id="view_account_payment_form_inherit" model="ir.ui.view">
+        <field name="name">account.payment.form.gupit</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Expose payment_channel for visibility rules -->
+            <xpath expr="//header/field[@name='state']" position="before">
+                <field name="is_pdc" invisible="1"/>
+                <field name="payment_channel" invisible="1"/>
+                <!-- Deposited: visible only when PDC + In Process -->
+                <button name="action_deposit"
+                        string="Deposited"
+                        type="object"
+                        class="oe_highlight"
+                        invisible="payment_channel != 'pdc' or state != 'in_process'"
+                        data-hotkey="d"/>
+                <!-- Bounced: visible only when PDC + Deposited -->
+                <button name="action_bounced"
+                        string="Bounced"
+                        type="object"
+                        class="btn-secondary"
+                        invisible="payment_channel != 'pdc' or state != 'deposited'"
+                        data-hotkey="b"/>
+                <!-- Pulled Out: visible only when PDC + Deposited -->
+                <button name="action_pulled_out"
+                        string="Pulled Out"
+                        type="object"
+                        class="btn-secondary"
+                        invisible="payment_channel != 'pdc' or state != 'deposited'"
+                        data-hotkey="u"/>
+            </xpath>
+
+            <!--
+                Validate button:
+                - Non-PDC: show when in_process and no move_id (original)
+                - PDC: hide in in_process, show in deposited
+            -->
+            <xpath expr="//button[@name='action_validate']" position="attributes">
+                <attribute name="invisible">(state != 'in_process' or move_id or payment_channel == 'pdc') and (state != 'deposited' or payment_channel != 'pdc')</attribute>
+            </xpath>
+
+            <!-- Hide Reset to Draft when state is bounced or pulled_out -->
+            <xpath expr="//button[@name='action_draft']" position="attributes">
+                <attribute name="invisible">state in ('draft', 'bounced', 'pulled_out')</attribute>
+            </xpath>
+
+            <!-- Payment Channel shortcut: quickly sets journal + payment method -->
+            <xpath expr="//group[@name='group2']/field[@name='journal_id']" position="before">
+                <field name="payment_channel" readonly="state != 'draft'"/>
+            </xpath>
+
+            <!-- PDC fields after Payment Date -->
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="check_date" invisible="payment_channel != 'pdc'" required="payment_channel == 'pdc'"
+                       readonly="state in ('paid', 'bounced', 'pulled_out')"/>
+                <field name="deposited_date" invisible="payment_channel != 'pdc'"/>
+                <field name="clear_date" invisible="payment_channel != 'pdc'"/>
+                <field name="check_reference" invisible="payment_channel != 'pdc'" required="payment_channel == 'pdc'"
+                       readonly="state in ('paid', 'bounced', 'pulled_out')"/>
+                <field name="reference_cr_number" invisible="payment_channel != 'pdc'"
+                       readonly="state in ('paid', 'bounced', 'pulled_out')"/>
+                <field name="check_comment" invisible="payment_channel != 'pdc'"
+                       readonly="state in ('paid', 'bounced', 'pulled_out')"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

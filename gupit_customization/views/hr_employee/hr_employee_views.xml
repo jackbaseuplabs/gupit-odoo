@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_employee_form_inherit_gupit_commission" model="ir.ui.view">
+        <field name="name">hr.employee.form.gupit.commission</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page name="gupit_sales_commissions" string="Sales Commissions">
+                    <field name="sale_order_ids" readonly="1">
+                        <list string="Sales Orders">
+                            <field name="name" string="Sales Order Number"/>
+                            <field name="regular_commission"/>
+                            <field name="over_the_counter_commission"/>
+                            <field name="currency_id" column_invisible="1"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
